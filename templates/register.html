@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Register Your User</title>
+</head>
+<body>
+	This system uses email addresses as usernames.
+	<form method="POST" action="/handleRegistration">
+		Please enter an email address:
+		<input type="name" name="emailaddress" required autofocus/>
+		Enter a password:
+		<input type="password" name="password" required/>
+		Verify the password:
+		<input type="password" name="verifyPassword" required/>
+		<input name="Register" type="submit" text="Login" />
+		<label for="someErrors">{{error}}</label>
+	</form>
