@@ -1,5 +1,4 @@
 from werkzeug.security import generate_password_hash
-import json
 
 def connect(mysql, cursor, connection):
 	try:
@@ -15,7 +14,7 @@ def connect(mysql, cursor, connection):
 def authenticateUser(cursor, username, password):  #takes a mysql database context, username(email address), and password.
 	pwHash = passwordHash(password)
 
-	try {
+	try:
 		cursor.execute("select * from user;")  #user table format: userid, username, password  #TODO:  Add: confirmationToken, isConfirmed, csrfToken, tokenTimestamp
 		sqlResponseData = cursor.fetchall()
 

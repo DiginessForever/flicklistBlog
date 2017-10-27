@@ -3,6 +3,7 @@ import requests
 from flask import Flask
 from flaskext.mysql import MySQL
 import re
+import json
 import dns.resolver  #must install dnspython to get this (from command line:  "pip install dnspython" OR "conda install dnspython")
 import databaseHelper #this is my helper class with the database query methods
 #import validate_email   #email verification easy mode - or another check I could run.
