@@ -32,10 +32,12 @@ app.config['MYSQL_DATABASE_DB'] = dbName
 app.config['MYSQL_DATABASE_HOST'] = dbAddress
 mysql.init_app(app)
 
+
 @app.route("/")  #Put this in your browser URL: http://localhost:5000/
 def main():
 	#Template html pages are in the templates sub folder.
 	return render_template('login.html')
+
 
 #TODO:  Make button on login page that redirects to register page.
 #TODO:  Create the user at the registration page.
@@ -52,9 +54,11 @@ def login():
 		error = "<p>Sorry - either that username does not exist or the password is incorrect.</p>"
 		return render_template("login.html", error=error)
 
+
 @app.route("/register", methods=["GET"])
 def register():
 	return render_template("register.html")
+
 
 @app.route("/handleRegistration", methods=["POST"])
 def handleRegistration():
@@ -78,12 +82,14 @@ def handleRegistration():
 	msg = "You should have received a verification email.  Click the link in the email to confirm."
 	return render_template("login.html", error=msg)
 
+
 #If the user insists that their email address is real, I will try to send an email to it anyway, regardless of checks failing.
 #If they can perform the verification step, I know they can see the email, so the email address must exist.
 #This method will try to send emails to those email address which fail the checks...
 @app.route("/itsAReallyMeMario", methods=["POST"])
 def itsAReallyMeMario():
 	print("itsAReallyMeMario:  Not implemented error")
+
 
 def isValidPassword(password, password2, error):
 	if password != password2:
@@ -93,6 +99,7 @@ def isValidPassword(password, password2, error):
 		error = "Sorry, your password must be at least 3 characters and no more than 20 characters..."
 		return false
 	return true
+
 
 #TODO: Extend the rules to implement RFC 6531: https://tools.ietf.org/html/rfc6531 (In order to support all the characters used in the world)
 #TODO: Add more logic to allow quotes.
@@ -120,15 +127,17 @@ def isValidEmail(emailString, error):
 	else:
 		return True
 
+
+#Here are the rules (these have been updated, but I'll go with these for starters):
+#1.  Can have alphanumerics.
+#2.  Can have dashes '-', but they cannot be the first or last character.
+#3.  Must have at least a top and bottom level domain:
+#		For instance, in gmail.com, "com" is the top level and "gmail" is the bottom level.
+#		This means that there will be at least one '.' (period), though there could be more.
+#4.  Each level must be at least 3 characters, and none of the levels can be more than 63 characters.
+#5.  This validator fails if there are more than four levels in the domain part of the email address.
+#TODO: Is there an authoritative rule for #5?
 def domainChecker(domainPortion):
-	#Here are the rules (these have been updated, but I'll go with these for starters):
-	#1.  Can have alphanumerics.
-	#2.  Can have dashes '-', but they cannot be the first or last character.
-	#3.  Must have at least a top and bottom level domain:
-	#		For instance, in gmail.com, "com" is the top level and "gmail" is the bottom level.
-	#		This means that there will be at least one '.' (period), though there could be more.
-	#4.  Each level must be at least 3 characters, and none of the levels can be more than 63 characters.
-	#5.  This validator fails if there are more than four levels in the domain part of the email address.  TODO: Is there an authoritative rule?
 	domainError = ""
 	if len(domainPortion) == 0:
 		return "<p>Your email address must include a domain portion</p>"
@@ -157,30 +166,33 @@ def domainChecker(domainPortion):
 
 	return domainError
 
+
+#Here I check the local-part (the part before the '@' sign) of the email address.  
+#Local-Part Rules:
+#1.  The local part cannot have more than 64 characters.
+#2.  It cannot have the period '.' as the first or last character.
+#3.  It can have alphanumerics and these special characters (and nothing else):
+#         !#$%&'*+-/=?^_`{|}~    
+#Converter:  http://www.rapidtables.com/code/text/ascii-table.htm
+#These are their ASCII codes: \x21 \x23 \x24 \x25 \x26 \x27 \x2A \x2B \2D \x2F \x3D \? \x5E
+#\x5F \x7B \x7C \x7D \x7E
+#Regex attempt:  "^[A-Za-z0-9.\x21\x23-\x27\x2A\x2B\x2D\x2F\x3D\?\x5E\x5F\x7B\x7C-\x7E]+$"
+
+#4.  It can also have the '.' (period, ASCII 46) character, 
+#		but the period can't be the first or last character or be repeated consecutively.
+#5.  I am not going to allow quotes in the email address as I have 6 days left to do 2 more assignments after this one.
 def nameChecker(namePortion):
 	nameError = ""
-	#Here I check the local-part (the part before the '@' sign) of the email address.  
-	#Local-Part Rules:
-	#1.  The local part cannot have more than 64 characters.
-	#2.  It cannot have the period '.' as the first or last character.
-	#3.  It can have alphanumerics and these special characters (and nothing else):
-	#         !#$%&'*+-/=?^_`{|}~    
-	#Converter:  http://www.rapidtables.com/code/text/ascii-table.htm
-	#These are their ASCII codes: \x21 \x23 \x24 \x25 \x26 \x27 \x2A \x2B \2D \x2F \x3D \? \x5E
-	#\x5F \x7B \x7C \x7D \x7E
-	#Regex attempt:  "^[A-Za-z0-9.\x21\x23-\x27\x2A\x2B\x2D\x2F\x3D\?\x5E\x5F\x7B\x7C-\x7E]+$"
 
-	#4.  It can also have the '.' (period, ASCII 46) character, 
-	#		but the period can't be the first or last character or be repeated consecutively.
-	#5.  I am not going to allow quotes in the email address as I have 6 days left to do 2 more assignments after this one.
+	if re.match("^[A-Za-z0-9.\x21\x23-\x27\x2A\x2B\x2D\x2F\x3D\?\`\x5E\x5F\x7B\x7C-\x7E]+$", namePortion) != None:
+		nameError += '''<p>The name portion of the email address can only contain the following types of characters: alphanumerics, periods,
+					 and the following special chars: \`\~\!\@\#\$\%\^\&\*\_\-+/=\?\{\}\|</p>'''
 
-	if re.match("^[^A-Za-z0-9.\x33\x35-\x39\x42\x43\x45\x47\x61\x63\x94-\x96\x123-\x126]+$", namePortion) != None:
-		nameError += "<p>The name portion of the email address can only contain the following types of characters: alphanumerics, periods, and the following special chars: `\~\!\@\#\$\%\^\&\*\_\-+/=\?\{\}\|</p>"
-		
 	return nameError
 	
 if __name__ == "__main__":
 	app.run()
+
 
 #TODO:  Implement this section as a replacement or addition to the email validation later.
 	#I want the user to use their email address.  This will serve as their user name.
@@ -197,3 +209,16 @@ if __name__ == "__main__":
 	#	if (validate_email(username), check_mx=true):  #check the domain to make sure it has an email server (by querying for an MX response)
 	#		if (validate_email('example@example.com',verify=True)):
 	#			print("Yay - it's a valid email, but I can't use this method because they want me to struggle with the notorious regex email problem.")
+
+#TODO:  Consider all the characters that need to be escaped...where do they need to be escaped?  I think I will HTML escape them by going over every
+#		value coming into the system and replacing those characters with escaped characters.  I will then need to perform email tests using the escaped
+#		characters, and if they don't work, unescape that character set when sending to email addresses with those in the address.
+#		" ' < > & ` , ! @ $ % ( ) = + { } [ ] and space(which can be used to break out of an unquoted HTML attribute value)
+#		& = &amp;
+#		< = &lt;
+#		> = &gt;
+#		" = &quot;
+#		' = &#39;
+#		http://www.theukwebdesigncompany.com/articles/entity-escape-characters.php
+#		Always specify a charset so you don't get UTF-7.  If the attacker can get IE to render in UTF-7, you're done.
+#		Specify UTF-8 in both HTTP response headers and <meta> tag.
