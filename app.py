@@ -65,25 +65,41 @@ def register():
 def handleRegistration():
 	#TODO  Create a registration page template in the templates folder.
 	error = ""
-	emailAddress = request.form['emailaddress']
+	username = request.form["username"]
+	emailAddress = request.form['emailAddress']
 	password = request.form['password']
 	verifyPassword = request.form['verifyPassword']
 
+	if re.match("^[^\s]{3,20}$", username) == None:
+		print("Username spaces or length error.")
+		usernameError = "Your username should not contain spaces and should be 3-20 characters long."
+		return render_template("register.html", usernameError=usernameError,
+			username=username, emailAddress=emailAddress)
+
+	if authenticateUser(mysql, username, password, True) == True:  #method is in databaseHelper.py
+		#TODO:  The user may forget their password, have two methods supporting pass reset.
+		print("username exists")
+		return render_template("register.html", 
+			userNameError="That username already exists. Please pick a different username.",
+			emailAddress=emailAddress)
+
 	error = isValidPassword(password, verifyPassword)
 	if len(error) > 0:
-		return render_template("register.html", error=error)
-	error = isValidEmail(emailAddress)
-	if len(error) > 0:
-		return render_template("register.html", error=error, emailaddress=emailAddress)
-	if authenticateUser(mysql, emailAddress, password, True):  #method is in databaseHelper.py
-		error = "That username already exists.  Please pick a different username."   
-		#TODO:  The user may forget their password, have two methods supporting pass reset.
-		return render_template("register.html", error=error, emailaddress=emailAddress)
+		print("password spaces, length, or verification error")
+		return render_template("register.html", passwordError=error, username=username, emailAddress=emailAddress)
 
-	createUser(mysql, emailAddress, password)  #This method is in databaseHelper.py.
+	if len(emailAddress) > 0:
+		error = isValidEmail(emailAddress)
+		if len(error) > 0:
+			print("Email address validation error.")
+			return render_template("register.html", username=username, emailaddress=emailAddress,
+				emailAddressError=error)	
 
-	msg = "You should have received a verification email.  Click the link in the email to confirm."
-	return render_template("login.html", error=msg)
+	if createUser(mysql, username, password, emailAddress):  #This method is in databaseHelper.py.
+		return render_template("login.html", error="Thank you for signing up.  Please login.")
+	else:
+		print("Create user error.")
+		return render_template("register.html", error="We are experiencing technical difficulties.  Please try again later.")
 
 
 #If the user insists that their email address is real, I will try to send an email to it anyway, regardless of checks failing.
@@ -95,11 +111,12 @@ def itsAReallyMeMario():
 
 
 def isValidPassword(password, password2):
+	error = ""
+	if re.match("^[^\s]{3,20}$", password) == None:
+		error += "Your password should not contain spaces and be 3-20 characters long."
 	if password != password2:
-		return "Your password verification does not match the password."
-	if len(password) < 3 or len(password) > 20:
-		return "Sorry, your password must be at least 3 characters and no more than 20 characters..."
-	return ""
+		error += "Your password verification does not match the password."
+	return error
 
 
 #TODO: Extend the rules to implement RFC 6531: https://tools.ietf.org/html/rfc6531 (In order to support all the characters used in the world)
@@ -116,6 +133,8 @@ def isValidEmail(emailString):
 		atSignError = True
 		error = '''You can only have one '@' sign in your email address.  It must have a name portion before the '@' and a domain portion after.'''
 	else:
+		if re.match("^[^\s]{1,256}$", emailString) == None:
+			error += "Please limit your email address to no more than 256 characters in length.  Also, no spaces.  Thank you."
 		splitEmail = emailString.split('@') #If the above check passed, we have a name portion, @ sign, and domain portion.
 		namePortion = splitEmail[0]
 		domainPortion = splitEmail[1]

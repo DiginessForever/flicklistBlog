@@ -1,17 +1,38 @@
 <!DOCTYPE html>
 <html>
-<head>
-	<title>Register Your User</title>
-</head>
-<body>
-	This system uses email addresses as usernames.
-	<form method="POST" action="/handleRegistration">
-		Please enter an email address:
-		<input type="name" name="emailaddress" required autofocus/>
-		Enter a password:
-		<input type="password" name="password" required/>
-		Verify the password:
-		<input type="password" name="verifyPassword" required/>
-		<input name="Register" type="submit" text="Login" />
-		<label for="someErrors">{{error}}</label>
-	</form>
+	<head>
+		<title>Register</title>
+	</head>
+	<body>
+		Sign up:
+		<form method="POST" action="/handleRegistration">
+			<table>
+				<tr>
+					<td>Username:</td>
+					<td><input type="name" name="username" required autofocus/></td>
+					<td><label for="usernameError">{{usernameError}}</label></td>
+				</tr>
+				<tr>
+					<td>Password:</td>
+					<td><input type="password" name="password" required/></td>
+					<td><label for="passwordError">{{passwordError}}</label></td>
+				</tr>
+				<tr>
+					<td>Verify password:</td>
+					<td><input type="password" name="verifyPassword" required/></td>
+					<td><label for="verifyPasswordError">{{verifyPasswordError}}</label></td>
+				</tr>
+				<tr>
+					<td>Email address (optional):</td>
+					<td><input type="name" name="emailAddress" /></td>
+					<td><label for="emailErrors">{{emailAddressError}}</label></td>
+				</tr>
+				<tr>
+					<td><input name="Register" type="submit" value="Sign up" /></td>
+					<td></td>
+					<td></td>
+				</tr>
+			</table>
+		</form>
+	</body>
+</html>

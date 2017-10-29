@@ -1,4 +1,5 @@
 from werkzeug.security import generate_password_hash
+import time
 
 def connect(mysql):
 	try:
@@ -8,6 +9,17 @@ def connect(mysql):
 	except Exception as e:
 		print("There was a problem connecting to MySQL: " + str(e))
 		return None
+
+def insert(mysql, insertCmd):
+	try:
+		connection = mysql.get_db()
+		cursor = mysql.connect().cursor()
+		cursor.execute(insertCmd)
+		connection.commit()
+		return True
+	except Exception as e:
+		print("Problem inserting into db: " + str(e))
+		return False
 
 #Returns true if username/passwordHash combo exists in database.
 #Get a cursor first using connect(), then pass it into this method.  Separating the functionality this way lets me keep error messages in one place.
@@ -34,19 +46,27 @@ def authenticateUser(mysql, username, password, existenceOnly):  #takes a mysql 
 	else:
 		return "We are experiencing technical difficulties with the database.  Please try again later."
 
-def createUser(mysql, username, password):
-	cursor = connect(mysql)
-	
-	if cursor != None:
+def createUser(mysql, username, password, emailAddress):
+	#cursor = connect(mysql)
+
+	query = "INSERT INTO user (username, password, emailaddress) VALUES ('"
+	query += username + "','" + passwordHash(password) + "','" + emailAddress #+ "','" 
+	#query += time.strftime('%Y-%m-%d %H:%M:%S')	
+	query += "');"
+	print(query)
+
+	return insert(mysql, query)
+	''' if cursor != None:
 		try:
-			cursor.execute("INSERT INTO USER (username, password) VALUES ('" + str(username) + "','" + str(passwordHash(password)) + "');")
+			cursor.execute(query)
 			connection.commit()
 			return True
 		except Exception as e:
 			print("Problem creating user: " + str(e))
 			return False
 	else:
-		return "We are experiencing technical difficulties with the database.  Please try again later."
+		print("Problem with createUser - no db connection.")
+		return False '''
 
 def passwordHash(password):
 	return generate_password_hash(password)
