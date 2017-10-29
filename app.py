@@ -81,6 +81,7 @@ def handleRegistration():
 		print("username exists")
 		return render_template("register.html", 
 			userNameError="That username already exists. Please pick a different username.",
+			username=username,
 			emailAddress=emailAddress)
 
 	error = isValidPassword(password, verifyPassword)
@@ -96,7 +97,8 @@ def handleRegistration():
 				emailAddressError=error)	
 
 	if createUser(mysql, username, password, emailAddress):  #This method is in databaseHelper.py.
-		return render_template("login.html", error="Thank you for signing up.  Please login.")
+		#return render_template("login.html", error="Thank you for signing up.  Please login.")
+		return "<!DOCTYPE html><html><body>Welcome " + username + "!</body></html>"  #Bah humbug!
 	else:
 		print("Create user error.")
 		return render_template("register.html", error="We are experiencing technical difficulties.  Please try again later.")

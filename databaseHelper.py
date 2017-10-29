@@ -3,7 +3,7 @@ import time
 
 def connect(mysql):
 	try:
-		connection = mysql.get_db()
+		#connection = mysql.get_db()
 		cursor = mysql.connect().cursor()
 		return cursor
 	except Exception as e:
@@ -12,13 +12,18 @@ def connect(mysql):
 
 def insert(mysql, insertCmd):
 	try:
-		connection = mysql.get_db()
-		cursor = mysql.connect().cursor()
-		cursor.execute(insertCmd)
-		connection.commit()
-		return True
-	except Exception as e:
-		print("Problem inserting into db: " + str(e))
+		connection = mysql.connect()
+		cursor = connection.cursor()
+		try:
+			cursor.execute(insertCmd)
+			connection.commit()
+			return True
+		except Exception as e:
+			print("Problem inserting into db: " + str(e))
+			connection.rollback()
+			return False
+	except Exception as f:
+		print("Problem getting a db connection or cursor: " + str(f))
 		return False
 
 #Returns true if username/passwordHash combo exists in database.
@@ -47,26 +52,18 @@ def authenticateUser(mysql, username, password, existenceOnly):  #takes a mysql 
 		return "We are experiencing technical difficulties with the database.  Please try again later."
 
 def createUser(mysql, username, password, emailAddress):
-	#cursor = connect(mysql)
+	if emailAddress == "":
+		emailAddress = "null"
+	else:
+		emailAddress = "'" + emailAddress + "'"
 
 	query = "INSERT INTO user (username, password, emailaddress) VALUES ('"
-	query += username + "','" + passwordHash(password) + "','" + emailAddress #+ "','" 
+	query += username + "','" + passwordHash(password) + "'," + emailAddress #+ "','" 
 	#query += time.strftime('%Y-%m-%d %H:%M:%S')	
-	query += "');"
+	query += ");"
 	print(query)
 
 	return insert(mysql, query)
-	''' if cursor != None:
-		try:
-			cursor.execute(query)
-			connection.commit()
-			return True
-		except Exception as e:
-			print("Problem creating user: " + str(e))
-			return False
-	else:
-		print("Problem with createUser - no db connection.")
-		return False '''
 
 def passwordHash(password):
 	return generate_password_hash(password)
