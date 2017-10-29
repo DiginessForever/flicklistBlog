@@ -5,7 +5,7 @@ from flaskext.mysql import MySQL
 import re
 import json
 import dns.resolver  #must install dnspython to get this (from command line:  "pip install dnspython" OR "conda install dnspython")
-import databaseHelper #this is my helper class with the database query methods
+from databaseHelper import * #this is my helper class with the database query methods
 #import validate_email   #email verification easy mode - or another check I could run.
 
 app = Flask(__name__)
@@ -22,10 +22,10 @@ with open('config') as data_file:
 	#	"db_name" = "my database name"
 	#	"db_address" = "database server url or IP address"
 	#}
-	dbUser = data["db_user"]
-	dbPass = data["db_pass"]
-	dbName = data["db_name"]
-	dbAddress = data["db_address"]
+	dbAddress = data["dbAddress"]
+	dbName = data["dbName"]
+	dbUser = data["dbUser"]
+	dbPass = data["dbPass"]
 
 app.config['MYSQL_DATABASE_USER'] = dbUser
 app.config['MYSQL_DATABASE_PASSWORD'] = dbPass
@@ -48,8 +48,8 @@ def login():
 	password = request.form['password']
 	error = ""
 
-	if authenticateUser(mysql, username, password):  #this method is in databaseHelper.py
-		#TODO render the mainPage template here.  It should have a csrf token and userid.
+	if authenticateUser(mysql, username, password, False):  #this method is in databaseHelper.py
+		#TODO render the mainPage template here.  It should later have a csrf token and userid.
 		return "<!DOCTYPE html><html><body><p>Welcome to the system.</p></body></html>"
 	else:  
 		error = "<p>Sorry - either that username does not exist or the password is incorrect.</p>"
@@ -69,11 +69,13 @@ def handleRegistration():
 	password = request.form['password']
 	verifyPassword = request.form['verifyPassword']
 
-	if isValidPassword(password, verifyPassword, error) != True:
+	error = isValidPassword(password, verifyPassword)
+	if len(error) > 0:
 		return render_template("register.html", error=error)
-	if isValidEmail(emailAddress, error) != True:
+	error = isValidEmail(emailAddress)
+	if len(error) > 0:
 		return render_template("register.html", error=error, emailaddress=emailAddress)
-	if authenticateUser(mysql, emailAddress, password):  #method is in databaseHelper.py
+	if authenticateUser(mysql, emailAddress, password, True):  #method is in databaseHelper.py
 		error = "That username already exists.  Please pick a different username."   
 		#TODO:  The user may forget their password, have two methods supporting pass reset.
 		return render_template("register.html", error=error, emailaddress=emailAddress)
@@ -92,29 +94,27 @@ def itsAReallyMeMario():
 	print("itsAReallyMeMario:  Not implemented error")
 
 
-def isValidPassword(password, password2, error):
+def isValidPassword(password, password2):
 	if password != password2:
-		error = "Your password verification does not match the password."
-		return false
+		return "Your password verification does not match the password."
 	if len(password) < 3 or len(password) > 20:
-		error = "Sorry, your password must be at least 3 characters and no more than 20 characters..."
-		return false
-	return true
+		return "Sorry, your password must be at least 3 characters and no more than 20 characters..."
+	return ""
 
 
 #TODO: Extend the rules to implement RFC 6531: https://tools.ietf.org/html/rfc6531 (In order to support all the characters used in the world)
 #TODO: Add more logic to allow quotes.
-def isValidEmail(emailString, error):
+def isValidEmail(emailString):
 	splitEmail = ""
 	namePortion = ""
 	domainPortion = ""
+	error = ""
 
 	#This makes sure there is only one '@' sign, and that it has characters before and after it.
 	atSignError = False
-	if re.match('^[^@]+@[^@]+$', emailString) != None:
+	if re.match('^[^@]+@[^@]+$', emailString) == None:
 		atSignError = True
-		error = '''<p>You can only have one '@' sign in your email address.</p>
-				<p>It must have a name portion before the '@' and a domain portion after.</p>'''
+		error = '''You can only have one '@' sign in your email address.  It must have a name portion before the '@' and a domain portion after.'''
 	else:
 		splitEmail = emailString.split('@') #If the above check passed, we have a name portion, @ sign, and domain portion.
 		namePortion = splitEmail[0]
@@ -122,11 +122,7 @@ def isValidEmail(emailString, error):
 		error += domainChecker(domainPortion)
 		error += nameChecker(namePortion)
 
-	if len(error > 0):
-		print(error)
-		return False
-	else:
-		return True
+	return error
 
 
 #Here are the rules (these have been updated, but I'll go with these for starters):
@@ -150,20 +146,26 @@ def domainChecker(domainPortion):
 			domainError += "<p>Dashes must not be the first or last characters.</p>"
 
 		#If there are periods with text around them, check the levels:
-		if re.match('^[A-Za-z0-9-.]+.[A-Za-z0-9-.]+$', emailString) != None:
-			levels = domainPortion.split['.']
+		if re.match('^[A-Za-z0-9-.]+.[A-Za-z0-9-.]+$', domainPortion) != None:
+			levels = domainPortion.split('.')
 			if len(levels) < 1 or len(levels) > 4:  #TODO:  Find the authoritative rule on number of TLDs allowed.
-				domainError += "<p>You must have between one and four levels to the domain name (TLDs).</p>" 
+				domainError += "You must have between one and four levels to the domain name (TLDs)." 
 			else:
-				for level in level:
+				for level in levels:
 					if len(level) > 63:
-						domainError += "<p>No domain level may have more than 63 characters</p>"
+						domainError += "No domain level may have more than 63 characters"
 						#domainError += "<p>The level which breaks that rule is: " + level[0:62] + "...</p>"
 
 		#Finally, I will do a domain name server check using dnspython.  I will tell the user if there's no email server detected on that domain.
-		answers = dns.resolver.query(domainPortion, 'MX')  #pyDNS also has methods for stuff like this.
-		if len(answers) <= 0:
-			domainError += "<p>That domain does not seem to have an email server.  A DNS resolution failed to find MX records."
+		answers = ""
+		try:
+			answers = dns.resolver.query(domainPortion, 'MX')  #pyDNS also has methods for stuff like this.
+		except dns.resolver.NXDOMAIN:
+			domainError += "Domain not found."
+		except Exception as e:
+			print("Problem resolving to email server: " + str(e))
+		if len(answers) == 0:
+			domainError += "That domain does not seem to have an email server.  A DNS resolution failed to find MX records."
 
 	return domainError
 
@@ -185,7 +187,7 @@ def domainChecker(domainPortion):
 def nameChecker(namePortion):
 	nameError = ""
 
-	if re.match("^[A-Za-z0-9.\x21\x23-\x27\x2A\x2B\x2D\x2F\x3D\?\`\x5E\x5F\x7B\x7C-\x7E]+$", namePortion) != None:
+	if re.match("^[^A-Za-z0-9.\x21\x23-\x27\x2A\x2B\x2D\x2F\x3D\?\`\x5E\x5F\x7B\x7C-\x7E]+$", namePortion) != None:
 		nameError += '''<p>The name portion of the email address can only contain the following types of characters: alphanumerics, periods,
 					 and the following special chars: \`\~\!\@\#\$\%\^\&\*\_\-+/=\?\{\}\|</p>'''
 
