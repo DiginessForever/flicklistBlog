@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<html>
+    <head><title>Are you sure you want to delete this post?</title></head>
+    <form action="/deletePost" method="DELETE">
+        <label for="userid" hidden>{{userid}}</label>
+        <label for="postId" hidden>{{postId}}</label>
+        <input type="submit" name="killit" value="Yes Delete" />
+        <button type="button" onclick="window.open('', '_self', ''); window.close();">Cancel</button>
+    </form>
+</html>

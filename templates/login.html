@@ -1,35 +1,18 @@
-<!DOCTYPE html>
-<html>
-	<head>
-		<title>User Login Page</title>
-		<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
-	</head>
-	<body>
-		<form method="POST" action="/login">
+{% extends "base.html" %}
+{% block content %}
+		<form method="POST" action="/handleLogin">
+			{% if _csrf_token %}
+			<input name=_csrf_token type=hidden value="{{ _csrf_token() }}">
 			Please enter your username:
 			<input type="name" name="username" required autofocus/>
+			<label for="usernameError">{{usernameError}}</label>
 			Enter your password:
-			<input type="name" name="password" type="password" required/>
+			<input type="password" name="password" required/>
+			<label for="passwordError">{{passwordError}}</label>
 			<input name="postThis" type="submit" text="Login" />
 			<label for="someErrors">{{error}}</label>
 		</form>
-		<script>
-			/*  //AJAX example to play with later:
-			//Also have all my stuff from C#/.NET where I'm using AJAX already, see those notes.
-			$(function() {
-				$('#signupButton').click(function(){
-					$.ajax: '/signup',
-					data: $('form').serialize(),
-					type: 'POST',
-					success: function(response) {
-						console.log(response);
-					};
-					error: function(error){
-						console.log(error);
-					}
-				});
-			});
-			*/
-		</script>
-	</body>
-</html>
+		<form method="GET" action="/signup">
+			<input name="goRegister" type="submit" value="Sign Up"/>
+		</form>
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<article>
+    <form action="/handleNewPost" method="POST" >
+        <input type="hidden" name="thisUserid" />
+        <input type="hidden" name="sessionToken" />
+        <h1>Title:<input type="name" name="postTitle" /></h1>
+        <textarea name="postText"></textarea>
+        <input type="submit" name="postButton" value="Post" />
+        {{sessionTokenError}}
+    </form>
+</article>
+
+{% end block %}

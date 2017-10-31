@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block header %}
+    {% if overallBlogTitle %}
+       <h1>MetaQuest : {{overallBlogTitle}}</h1>
+    {% else %}
+    <h1>MetaQuest</h1>
+    {% endif %}
+{% endblock %}
+  
+{% block context %}
+<nav>
+  <ul>
+    {% if thisUserId == userid %}
+        <li><a href="/editBlogPost?postId={{postID}}&thisUserid={{thisUserid}}&sesionToken={{sessionToken}}"></a></li>
+        <li><a href="/deleteBlogPost?postId={{postID}}&thisUserid={{thisUserid}}&sesionToken={{sessionToken}}"></a></li>
+    {% endif %}
+  </ul>
+</nav>
+
+<article>
+    <h1>{{postTitle}}</h1>
+    {{postText}}
+</article>
+{% end block %}

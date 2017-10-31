@@ -1,15 +1,18 @@
-from flask import Flask, render_template, request, redirect #jsonify
+from flask import Flask, render_template, request, redirect, jsonify
 import requests
 from flask import Flask
-from flaskext.mysql import MySQL
-import re
+from flaskext.mysql import MySQL #has to be installed outside of conda, but is accessible while in the source env.
 import json
-import dns.resolver  #must install dnspython to get this (from command line:  "pip install dnspython" OR "conda install dnspython")
+from werkzeug.security import generate_password_hash
 from databaseHelper import * #this is my helper class with the database query methods
+from validators import *
+from securityHelper import *
+import string
+import random
 #import validate_email   #email verification easy mode - or another check I could run.
 
+
 app = Flask(__name__)
-#TODO:  Put this in a config file and make a config class for parsing the file in.
 mysql = MySQL()
 
 with open('config') as data_file:
@@ -26,6 +29,7 @@ with open('config') as data_file:
 	dbName = data["dbName"]
 	dbUser = data["dbUser"]
 	dbPass = data["dbPass"]
+	sessionTokenSecuritySigningString = data["sessionTokenSecuritySigningString"]
 
 app.config['MYSQL_DATABASE_USER'] = dbUser
 app.config['MYSQL_DATABASE_PASSWORD'] = dbPass
@@ -34,36 +38,97 @@ app.config['MYSQL_DATABASE_HOST'] = dbAddress
 mysql.init_app(app)
 
 
-@app.route("/")  #Put this in your browser URL: http://localhost:5000/
-def main():
-	#Template html pages are in the templates sub folder.
-	return render_template('login.html')
+#@app.before_request
+def csrf_protect():
+	if request.method == "POST" and request.endpoint != "signup" and request.endpoint != "login":
+		token = request.form['_csrf_token']
+		if token == None:
+			print("failed csrf_protect() -> did not have _csrf_token in the form as a hidden field")
+			return render_template("login.html", error="Session timed out or security check failed.")
+
+def csrfTokenGenerator(size=6, chars=string.ascii_uppercase + string.digits):
+	return ''.join(random.choice(chars) for _ in range(size))
+
+def sessionTokenCheck(mysql, thisUserid, givenSessionToken):
+    if checkDBsessionToken(mysql, givenSessionToken, thisUserid) != True:
+        print("The security check on sessionToken of userid " + str(thisUserid) + " did not match the user's session token in the DB.")
+        return False
+    return True
+
+#app.jinja_env.globals['csrf_token'] = generate_csrf_token 
+
+killedTheCSRFprotect = '''@app.before_request
+def csrf_protect():
+	#if 'logged_in' not in session and request.endpoint != 'login':
+    #    return redirect(url_for('login'))
+	print("At csrf_protect()")
+	if request.method == "POST":
+		if request.endpoint != 'login' and request.endpoint != "signup":
+			if request.endpoint != 'handleLogin' and request.endpoint != 'handleSignup':
+				thisUserid = request.form["thisUserid"]
+				givenSessionToken = request.form["sessionToken"]
+				print("csrf_protect() thisUserid: " + str(thisUserid) + " sessionToken: " + givenSessionToken)
+				if sessionTokenCheck(mysql, thisUserid, givenSessionToken, sessionTokenSecuritySigningString) == False:
+					print("@app.before_request, csrf_protect() session token check for user " + thisUserid + " token " + givenSessionToken + " failed.")
+					return render_template("login.html", error="Session timed out or security check failed.")
+'''
+
+@app.route("/")
+def index():
+	usernameSortedDict = getUsernamesAndUseridsWithBlogPosts()
+	return render_template("index.html", users=usernameSortedDict)
 
 
-#TODO:  Make button on login page that redirects to register page.
-#TODO:  Create the user at the registration page.
-@app.route("/login", methods=['POST'])   #http://localhost:5000/login
+@app.route("/login")  #Put this in your browser URL: http://localhost:5000/
 def login():
+	#Template html pages are in the templates sub folder.
+	return render_template('login.html', thisUserid=-1, sessionToken=-1)
+
+
+#TODO:  Add a button to the html to go to the register page
+@app.route("/handleLogin", methods=['POST'])
+def handleLogin():
+	#TODO:  More testing for sanity purposes.
 	username = request.form['username']
 	password = request.form['password']
 	error = ""
 
 	if authenticateUser(mysql, username, password, False):  #this method is in databaseHelper.py
-		#TODO render the mainPage template here.  It should later have a csrf token and userid.
-		return "<!DOCTYPE html><html><body><p>Welcome to the system.</p></body></html>"
+		thisUserid = getUserid(mysql, username)
+		if (thisUserid != ""):
+			anotherPasswordHash = generate_password_hash(password)
+			sessionToken = -1 #createSessionToken(mysql, thisUserid, anotherPasswordHash, sessionTokenSecuritySigningString)
+			print("Authenticated, redirecting " + username + ", userid: " + str(thisUserid) + " to mainPage.html.  Session token set: " + str(sessionToken))
+			#return mainPage(thisUserid, sessionToken) #let the user in since they were authenticated
+			return render_template("main.html", sessionToken = sessionToken, thisUserid=thisUserid)
+		else:
+			print("getUserid problem for: " + username)
+			return render_template("login.html", error='''This should not happen - the username/password 
+				authenticated, but getUserid query could not find the username in the database...''') 
 	else:  
-		error = "<p>Sorry - either that username does not exist or the password is incorrect.</p>"
-		return render_template("login.html", error=error)
+		print("login problem for " + username + ":" + password)
+		return render_template("login.html", error='''Sorry - either that username does not 
+			exist or the password is incorrect.''')
 
 
-@app.route("/register", methods=["GET"])
-def register():
-	return render_template("register.html")
+#This is a catchall to consider later / split into several methods:
+#	The user may have an email address my validator cannot handle.
+#	They may forget their username.
+#	They may forget their password.
+#	When I add a locking feature, they may lock out their account and need it reset.
+@app.route("/itsAReallyMeMario", methods=["POST"])
+def itsAReallyMeMario():
+	print("itsAReallyMeMario:  Not implemented error")
 
 
-@app.route("/handleRegistration", methods=["POST"])
-def handleRegistration():
-	#TODO  Create a registration page template in the templates folder.
+@app.route("/signup", methods=["GET"])
+def signup():
+	return render_template("signup.html")
+
+
+@app.route("/handleSignup", methods=["POST"])
+def handleSignup():
+	#TODO  More testing, sanity purposes.  Commit and make another repo.
 	error = ""
 	username = request.form["username"]
 	emailAddress = request.form['emailAddress']
@@ -73,176 +138,113 @@ def handleRegistration():
 	if re.match("^[^\s]{3,20}$", username) == None:
 		print("Username spaces or length error.")
 		usernameError = "Your username should not contain spaces and should be 3-20 characters long."
-		return render_template("register.html", usernameError=usernameError,
+		return render_template("signup.html", usernameError=usernameError,
 			username=username, emailAddress=emailAddress)
 
-	if authenticateUser(mysql, username, password, True) == True:  #method is in databaseHelper.py
-		#TODO:  The user may forget their password, have two methods supporting pass reset.
+	if authenticateUser(mysql, username, password, True):  #method is in databaseHelper.py
 		print("username exists")
-		return render_template("register.html", 
+		return render_template("signup.html", 
 			userNameError="That username already exists. Please pick a different username.",
 			username=username,
 			emailAddress=emailAddress)
 
-	error = isValidPassword(password, verifyPassword)
-	if len(error) > 0:
+	passwordError = isValidPassword(password, verifyPassword)
+	if len(passwordError) > 0:
 		print("password spaces, length, or verification error")
-		return render_template("register.html", passwordError=error, username=username, emailAddress=emailAddress)
+		return render_template("signup.html", passwordError=passwordError, 
+			username=username, emailAddress=emailAddress)
 
 	if len(emailAddress) > 0:
-		error = isValidEmail(emailAddress)
-		if len(error) > 0:
+		emailAddressError = isValidEmail(emailAddress)
+		if len(emailAddressError) > 0:
 			print("Email address validation error.")
-			return render_template("register.html", username=username, emailaddress=emailAddress,
-				emailAddressError=error)	
+			return render_template("signup.html", username=username, emailaddress=emailAddress,
+				emailAddressError=emailAddressError)	
 
-	if createUser(mysql, username, password, emailAddress):  #This method is in databaseHelper.py.
+	passwordHash = generate_password_hash(password)
+	if createUser(mysql, username, passwordHash, emailAddress):  #This method is in databaseHelper.py.
 		#return render_template("login.html", error="Thank you for signing up.  Please login.")
-		return "<!DOCTYPE html><html><body>Welcome " + username + "!</body></html>"  #Bah humbug!
+		return render_template("login.html", error="Thank you for signing up, please login!")
 	else:
 		print("Create user error.")
-		return render_template("register.html", error="We are experiencing technical difficulties.  Please try again later.")
+		return render_template("signup.html", 
+		   error="We are experiencing technical difficulties.  Please try again later.",
+		   username=username, emailAddress=emailAddress)
 
 
-#If the user insists that their email address is real, I will try to send an email to it anyway, regardless of checks failing.
-#If they can perform the verification step, I know they can see the email, so the email address must exist.
-#This method will try to send emails to those email address which fail the checks...
-@app.route("/itsAReallyMeMario", methods=["POST"])
-def itsAReallyMeMario():
-	print("itsAReallyMeMario:  Not implemented error")
+@app.route("/blog", methods=["GET"])
+def blog():
+	#TODO: Test, Debug
+	thisUserid = request.form["thisUserid"]
+	sessionToken = request.form["sessionToken"]
+	blogList = getBlogList(mysql)
+	return render_template("blog.html", blogList=blogList, 
+		thisUserid=thisUserid, sessionToken=sessionToken)
 
 
-def isValidPassword(password, password2):
-	error = ""
-	if re.match("^[^\s]{3,20}$", password) == None:
-		error += "Your password should not contain spaces and be 3-20 characters long."
-	if password != password2:
-		error += "Your password verification does not match the password."
-	return error
+@app.route("/viewBlog", methods=["GET"])
+def viewBlog():
+	#TODO:  Test, Debug
+	thisUserid = request.form["thisUserid"]
+	sessionToken = request.form["sessionToken"]
+	blogUserid = request.form["userid"]
+	blogList = getAuthorsBlogList(mysql, blogUserid)
+	return render_template("viewBlog.html", blogList=blogList, 
+		thisUserid=thisUserid, sessionToken=sessionToken)
 
 
-#TODO: Extend the rules to implement RFC 6531: https://tools.ietf.org/html/rfc6531 (In order to support all the characters used in the world)
-#TODO: Add more logic to allow quotes.
-def isValidEmail(emailString):
-	splitEmail = ""
-	namePortion = ""
-	domainPortion = ""
-	error = ""
-
-	#This makes sure there is only one '@' sign, and that it has characters before and after it.
-	atSignError = False
-	if re.match('^[^@]+@[^@]+$', emailString) == None:
-		atSignError = True
-		error = '''You can only have one '@' sign in your email address.  It must have a name portion before the '@' and a domain portion after.'''
-	else:
-		if re.match("^[^\s]{1,256}$", emailString) == None:
-			error += "Please limit your email address to no more than 256 characters in length.  Also, no spaces.  Thank you."
-		splitEmail = emailString.split('@') #If the above check passed, we have a name portion, @ sign, and domain portion.
-		namePortion = splitEmail[0]
-		domainPortion = splitEmail[1]
-		error += domainChecker(domainPortion)
-		error += nameChecker(namePortion)
-
-	return error
-
-
-#Here are the rules (these have been updated, but I'll go with these for starters):
-#1.  Can have alphanumerics.
-#2.  Can have dashes '-', but they cannot be the first or last character.
-#3.  Must have at least a top and bottom level domain:
-#		For instance, in gmail.com, "com" is the top level and "gmail" is the bottom level.
-#		This means that there will be at least one '.' (period), though there could be more.
-#4.  Each level must be at least 3 characters, and none of the levels can be more than 63 characters.
-#5.  This validator fails if there are more than four levels in the domain part of the email address.
-#TODO: Is there an authoritative rule for #5?
-def domainChecker(domainPortion):
-	domainError = ""
-	if len(domainPortion) == 0:
-		return "<p>Your email address must include a domain portion</p>"
-	else:
-		if re.match('^[^A-Za-z0-9-.]+$', domainPortion) != None:
-			domainError += "<p>Your fully qualified domain name should only have alphanumeric characters, dashes, and periods.</p>"
-
-		if domainPortion[0] == '-' or domainPortion[len(domainPortion) - 1] == '-':
-			domainError += "<p>Dashes must not be the first or last characters.</p>"
-
-		#If there are periods with text around them, check the levels:
-		if re.match('^[A-Za-z0-9-.]+.[A-Za-z0-9-.]+$', domainPortion) != None:
-			levels = domainPortion.split('.')
-			if len(levels) < 1 or len(levels) > 4:  #TODO:  Find the authoritative rule on number of TLDs allowed.
-				domainError += "You must have between one and four levels to the domain name (TLDs)." 
-			else:
-				for level in levels:
-					if len(level) > 63:
-						domainError += "No domain level may have more than 63 characters"
-						#domainError += "<p>The level which breaks that rule is: " + level[0:62] + "...</p>"
-
-		#Finally, I will do a domain name server check using dnspython.  I will tell the user if there's no email server detected on that domain.
-		answers = ""
-		try:
-			answers = dns.resolver.query(domainPortion, 'MX')  #pyDNS also has methods for stuff like this.
-		except dns.resolver.NXDOMAIN:
-			domainError += "Domain not found."
-		except Exception as e:
-			print("Problem resolving to email server: " + str(e))
-		if len(answers) == 0:
-			domainError += "That domain does not seem to have an email server.  A DNS resolution failed to find MX records."
-
-	return domainError
-
-
-#Here I check the local-part (the part before the '@' sign) of the email address.  
-#Local-Part Rules:
-#1.  The local part cannot have more than 64 characters.
-#2.  It cannot have the period '.' as the first or last character.
-#3.  It can have alphanumerics and these special characters (and nothing else):
-#         !#$%&'*+-/=?^_`{|}~    
-#Converter:  http://www.rapidtables.com/code/text/ascii-table.htm
-#These are their ASCII codes: \x21 \x23 \x24 \x25 \x26 \x27 \x2A \x2B \2D \x2F \x3D \? \x5E
-#\x5F \x7B \x7C \x7D \x7E
-#Regex attempt:  "^[A-Za-z0-9.\x21\x23-\x27\x2A\x2B\x2D\x2F\x3D\?\x5E\x5F\x7B\x7C-\x7E]+$"
-
-#4.  It can also have the '.' (period, ASCII 46) character, 
-#		but the period can't be the first or last character or be repeated consecutively.
-#5.  I am not going to allow quotes in the email address as I have 6 days left to do 2 more assignments after this one.
-def nameChecker(namePortion):
-	nameError = ""
-
-	if re.match("^[^A-Za-z0-9.\x21\x23-\x27\x2A\x2B\x2D\x2F\x3D\?\`\x5E\x5F\x7B\x7C-\x7E]+$", namePortion) != None:
-		nameError += '''<p>The name portion of the email address can only contain the following types of characters: alphanumerics, periods,
-					 and the following special chars: \`\~\!\@\#\$\%\^\&\*\_\-+/=\?\{\}\|</p>'''
-
-	return nameError
+@app.route("/viewPost", methods=["GET"])
+def viewPost():
+	#TODO:  Test, Debug
+	thisUserid = request.form["thisUserid"]
+	sessionToken = request.form["sessionToken"]
+	postId = request.form["postId"]
+	#TODO database call to get this post's title and text
+	data = getBlogPost(mysql, postId)
+	userid = data[1]
+	postTitle = data[2]
+	postText = data[3]
 	
+	return render_template("viewPost", userid=userid, postTitle=postTitle, postText=postText, 
+		thisUserid=thisUserid, sessionToken=sessionToken)
+
+
+@app.route("/newPost", methods=["GET"])
+def newPost():
+	userid = request.form["thisUserid"]
+	givenSessionToken = request.form["sessionToken"]
+	if sessionTokenCheck(mysql, thisUserid, givenSessionToken, sessionTokenSecuritySigningString):
+		return render_template("newPost.html", thisUserId=thisUserid, sessionToken=givenSessionToken)
+	else:
+		return render_template("login.html", error="Session timed out or security check failed.")
+
+
+@app.route("/handleNewPost", methods=["POST"])
+def handleCreatePost():
+	#TODO:  Test, Debug
+	thisUserid = request.form["thisUserid"]
+	givenSessionToken = request.form["sessionToken"]
+	postTitle = request.form["postTitle"]
+	postText = request.form["postText"]
+
+	notNormalChars = "^[^\w\s]+$"
+	
+	if re.match(notNormalChars +"{1,50}", title):
+		postTitleError = "Post title may not exceed a maximum of 50 characters.  It may contain alphanumerics and white space."
+		return render_template("blogPost.html", thisUserid=thisUserid,
+			postTitle=postTitle, postTitleError=postTitleError, postText=postText)
+
+	if re.match(notNormalChars +"{1,5000", postText):
+		textError = "Post text maximum length is 5000 characters.  It may only contain alphanumerics and white space."
+		return render_template("blogPost.html", thisUserid=thisUserid,
+			postTitle=postTitle, postText=postText, textError=textError)
+
+	createBlogPost(mysql, userid, postTitle, postText)
+				
+	#TODO make "templates/viewPost.html"
+	return render_template("viewPost.html", userid=userid,
+		postTitle=postTitle, text=text)
+
+
 if __name__ == "__main__":
 	app.run()
-
-
-#TODO:  Implement this section as a replacement or addition to the email validation later.
-	#I want the user to use their email address.  This will serve as their user name.
-	#This is how I would normally do this, if this wasn't an exercise designed to get down and dirty with regex:
-	#1.  First the user enters an email, I use the validate_email module to check whether it follows email addr rules.
-	#2.  I use validate_email the second time to make sure the server is really an email server.
-	#3.  I use validate_email to query the server (without sending an email) to see if the email exists.
-	#4.  I create the user record with column IsConfirmed set to false.
-	#5.  I send an email to the address asking for confirmation, with a random code, which I store in the user record.
-	#6.  The user hits my server at the /confirmEmail, enters the code - if it is correct, I set IsConfirmed to true.
-	
-	#Here's Python's built-in validator module:
-	#if (validate_email(username)):  #checks against email format rules.
-	#	if (validate_email(username), check_mx=true):  #check the domain to make sure it has an email server (by querying for an MX response)
-	#		if (validate_email('example@example.com',verify=True)):
-	#			print("Yay - it's a valid email, but I can't use this method because they want me to struggle with the notorious regex email problem.")
-
-#TODO:  Consider all the characters that need to be escaped...where do they need to be escaped?  I think I will HTML escape them by going over every
-#		value coming into the system and replacing those characters with escaped characters.  I will then need to perform email tests using the escaped
-#		characters, and if they don't work, unescape that character set when sending to email addresses with those in the address.
-#		" ' < > & ` , ! @ $ % ( ) = + { } [ ] and space(which can be used to break out of an unquoted HTML attribute value)
-#		& = &amp;
-#		< = &lt;
-#		> = &gt;
-#		" = &quot;
-#		' = &#39;
-#		http://www.theukwebdesigncompany.com/articles/entity-escape-characters.php
-#		Always specify a charset so you don't get UTF-7.  If the attacker can get IE to render in UTF-7, you're done.
-#		Specify UTF-8 in both HTTP response headers and <meta> tag.
