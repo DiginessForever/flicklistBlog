@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+    <nav>
+        <ul>
+            {% if bloglist|length == 0 %}
+                There are no blogs yet.
+            {% else %}
+                {% if thisUserid %}
+                    {% if sessionToken %}
+                        {% for item in bloglist %}
+                            <li>
+                                <a href="{{ url_for('viewBlog', userid=item.userid, postId=item.id, thisUserid=thisUserid, sessionToken=updateUserSessionToken(thisUserid)}}">
+                                    {{item.username}} : {{item.postTitle}}
+                                </a>
+                            </li>
+                        {% endfor %}
+                    {% endif %}
+                {% else %}
+                    <li>
+                        <a href="{{ url_for('viewBlog', userid=item.userid, postId=item.postId)}}">
+                            {{item.username}} : {{item.postTitle}}
+                        </a>
+                    </li>       
+                {% endif %}
+            {% endif %}
+        </ul>
+    </nav>
+{% endblock %}

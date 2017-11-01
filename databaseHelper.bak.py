@@ -174,7 +174,3 @@ def getUsernamesAndUseridsWithBlogPosts(mysql):
 	for row in data:
 		usernameDict[row[0]] = row[1]
 	return sorted(usernameDict)
-
-
-def passwordHash(password):
-	return generate_password_hash(password)

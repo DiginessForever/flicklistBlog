@@ -6,10 +6,19 @@
                 There are no users with blog posts yet.
             {% else %}
                 {% for user in users %}
-                    <li>
-                        <a href="{{ url_for('blog', userid=user.userid, thisUserid=thisUserid, sessionToken=sessionToken)}}">
-                        </a>
-                    </li>
+                    {% if thisUserid %}
+                        {% if sessionToken %}
+                            <li>
+                                <a href="{{ url_for('blog', userid=user.userid, thisUserid=thisUserid, sessionToken=sessionToken)}}">
+                                    {{user.username}}
+                                </a>
+                            </li>
+                        {% else %}
+                            <li>
+                                <a href="{{ url_for('blog', userid=user.userid)}}">{{user.username}}</a>
+                            </li>
+                        {% endif %}
+                    {% endif %}
                 {% endfor %}
             {% endif %}
         </ul>

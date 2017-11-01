@@ -1,8 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
 		<form method="POST" action="/handleLogin">
-			{% if _csrf_token %}
-			<input name=_csrf_token type=hidden value="{{ _csrf_token() }}">
 			Please enter your username:
 			<input type="name" name="username" required autofocus/>
 			<label for="usernameError">{{usernameError}}</label>
