@@ -9,7 +9,7 @@
                     {% if sessionToken %}
                         {% for item in bloglist %}
                             <li>
-                                <a href="{{ url_for('viewBlog', userid=item.userid, postId=item.id, thisUserid=thisUserid, sessionToken=updateUserSessionToken(thisUserid)}}">
+                                <a href="{{ url_for('viewBlog', userid=item.userid, postId=item.id, thisUserid=thisUserid, sessionToken=updateUserSessionToken(thisUserid))}}">
                                     {{item.username}} : {{item.postTitle}}
                                 </a>
                             </li>

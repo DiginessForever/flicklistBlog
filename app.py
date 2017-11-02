@@ -49,10 +49,10 @@ def handleLogin():
 	isValidUser, user = User.authenticate(db, username, password)
 	if isValidUser and user != None:
 			print("In handleLogin:  Updating session token for user '" + username + "'.")
-			updateUsersSessionToken(user.userid)
+			updateUsersSessionToken(user.id)
 			print("Authenticated, redirecting " + username + ", userid: " + str(user.id) + " to blog.html.")
 			#return mainPage(thisUserid, sessionToken) #let the user in since they were authenticated
-			return render_template("blog.html", thisUserid=thisUserid, sessionToken=user.sessionToken)
+			return render_template("blog.html", thisUserid=user.id, sessionToken=user.sessionToken)
 	else:
 		print("Login authentication failed attempt for: " + username)
 		return render_template("login.html", error=''''Either the user does not exist or that password is 
