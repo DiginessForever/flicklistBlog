@@ -54,16 +54,22 @@ CREATE TABLE blogpost (
 );
 
 8.  Change line 25 of models.py to match your database.  If you are using MySQL on your own computer, it will look like this (for the above configured user/pass and database name):
+
 app.config['SQLALCHEMY_DATABASE_URI'] = "mysql+pymysql://myfirstuser:myfirstpassword@localhost:3306/database1"
+
 9.  Start the application (enter this command from git-bash, from within the top level folder of the cloned repository):
+
 "python app.py"
+
 Wait until it says that it's listening.
+
 10.  Open a browser an navigate to this address:  "localhost:5000/register"
 You should be able to create new users here, and running the following command in MySQL Workbench should show them
 in the database:
+
 "SELECT * FROM user;"
 
-Basic Explanation of the system:
+Basic Explanation of the System:
 Flask is a webserver and it listens by default on port 5000.  So that's where localhost:5000 comes from.
 The "/register" portion of the above address comes from the @app.route statements above the Python methods in
 the app.py file.  At the bare minimum in the method below one of these routes, you will have a
@@ -72,14 +78,16 @@ render_template() statement.  That will serve one of the html files in the templ
 "/register" or "/login" are both routes that have only a render_template statement, so you can go to those pages first
 from your browser.
 If you look in templates/register.html, it has an html form in it.  The form's action parameter has the route that it
-will call.  Check out app.py to find the @app.route statement that matches that.  Note that @app.route's methods must
-include the method that register.html's form declares.
+will call.  Check out app.py to find the @app.route statement that matches that.  
+Note that @app.route's methods must include the method that register.html's form declares.
 To pull the values from the form's input fields into the Python code, these statements are used:
+
 someVariable = request.form["someInputFieldName"]
 
 Next, SQLAlchemy is a library that is used to connect to the database.  Check out models.py for how this is done.
-Note that there are two methods for defining classes (these match the database tables).  In User, I use the
+Note that there are two ways of defining classes (in order to match the database tables).  In User, I use the
 automapper to pull the database column names into the class as properties.
+
 In blogpost, I am declaring properties which I have to make sure match the blogpost table (I have not debugged through
 this class yet, and it likely doesn't work currently).  I will probably change this to automapping like User.
 
@@ -88,3 +96,5 @@ method in app.py:
 It gets the username and password from the login.html page's form.  It calls some validator methods to make sure
 the user is entering enough characters, etc.  Then, it calls authenticate(), which is in the models.py file.
 That method interacts with the database to make sure that username/password combination exists.
+
+Finally, the other methods in the User class in the models.py file show how to insert, update, and delete data in the database.
