@@ -18,13 +18,22 @@ Navigate into that directory:  "cd flicklistBlog"
 7.  Start MySQL and MySQL Workbench.  Use MySQL Workbench to connect to MySQL (login with the root user you setup
 when you installed MySQL).
 Run these SQL commands from MySQL Workbench while connected to MySQL to create your database, user, and starting tables (each command ends in a ';' character):
-"CREATE DATABASE database1;"
-"USE database1;"
-"CREATE user 'myfirstuser'@'%' IDENTIFIED by 'myfirstpassword';"
+
+CREATE DATABASE database1;
+
+USE database1;
+
+CREATE user 'myfirstuser'@'%' IDENTIFIED by 'myfirstpassword';
+
 GRANT ALL PRIVILEGES ON *.* to 'myfirstuser'%'
+
 GRANT ALL PRIVILEGES ON 'database1'.* TO 'myfirstuser'@'%'
+
 GRANT ALL PRIVILEGES ON 'database1'.'property' TO 'myfirstuser'@'%'
-"CREATE TABLE user (
+
+FLUSH PRIVILEGES;
+
+CREATE TABLE user (
     id int NOT NULL,
     username varchar(20) NOT NULL,
     password varchar(20) NOT NULL,
@@ -33,16 +42,17 @@ GRANT ALL PRIVILEGES ON 'database1'.'property' TO 'myfirstuser'@'%'
     lastRequest datetime NULL,
     emailAddress varchar(256) NULL,
     PRIMARY KEY(id)
-);"
-"CREATE TABLE blogpost (
+);
+
+CREATE TABLE blogpost (
     id int NOT NULL,
     userid int NOT NULL,
     postTitle varchar(256) NOT NULL,
     postText varchar(5000) NOT NULL,
     PRIMARY KEY(id),
     FOREIGN KEY(userid) REFERENCES user(id)
-);"
-"FLUSH PRIVILEGES;"
+);
+
 8.  Change line 25 of models.py to match your database.  If you are using MySQL on your own computer, it will look like this (for the above configured user/pass and database name):
 app.config['SQLALCHEMY_DATABASE_URI'] = "mysql+pymysql://myfirstuser:myfirstpassword@localhost:3306/database1"
 9.  Start the application (enter this command from git-bash, from within the top level folder of the cloned repository):
