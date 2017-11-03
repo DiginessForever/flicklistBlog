@@ -70,7 +70,9 @@ in the database:
 "SELECT * FROM user;"
 
 Basic Explanation of the System:
-Flask is a webserver and it listens by default on port 5000.  So that's where localhost:5000 comes from.
+
+Flask is a webserver and it listens by default on port 5000.  
+So that's where localhost:5000 comes from.
 The "/register" portion of the above address comes from the @app.route statements above the Python methods in
 the app.py file.  At the bare minimum in the method below one of these routes, you will have a
 render_template() statement.  That will serve one of the html files in the templates sub-directory.
