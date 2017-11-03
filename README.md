@@ -3,7 +3,7 @@ Instructions:
 https://conda.io/miniconda.html   (Choose the installer with Python 3.6 or higher)
 2.  Install git (Windows only - other OSs sensibly already come with git installed)
 https://git-scm.com/  (if you are on Mac or Linux, you already have git)
-When git is installed, run git-bash -> it will open up a command window.  All commands below (other than the SQL
+When git is installed, run git-bash. It will open up a command window.  All commands below (other than the SQL
 commands) will be entered into this git-bash window.
 3.  Install MySQL and MySQL Workbench
 https://dev.mysql.com/downloads/installer/  (if on Linux, look up the apt-get install and configure process)
@@ -12,9 +12,9 @@ Alternatively, if you want a cheap cloud database server for $10/month (DigitalO
 "git clone https://github.com/DiginessForever/flicklistBlog"  (This will copy this repo into a subdirectory named flicklistBLog in the directory you are currently in.  It will be ready for use with git.)
 Navigate into that directory:  "cd flicklistBlog"
 5.  Create a Conda/Python virtual environment with all required dependencies (and then some, I haven't pared it down yet):
-"conda create --name <env> --file dependecies.txt"    (get rid of the <> characters and change "env" to whatever you want to call your environment)
+"conda create --name myNewVirtualEnv --file dependecies.txt"
 6. Activate your virtual environment:
-"source activate <env>" (once again, get rid of the <> characters, change env to whatever you called the environment)
+"source activate myNewVirtualEnv"
 7.  Start MySQL and MySQL Workbench.  Use MySQL Workbench to connect to MySQL (login with the root user you setup
 when you installed MySQL).
 Run these SQL commands from MySQL Workbench while connected to MySQL to create your database, user, and starting tables (each command ends in a ';' character):
